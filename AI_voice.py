@@ -5,7 +5,7 @@ from openai import OpenAI
 from datetime import datetime
 import threading
 
-
+gui_app = None
 # For changing speak modes
 global current_mode
 current_mode = "jarvis" # Default mode
@@ -16,7 +16,9 @@ client = OpenAI(api_key="lmstudio", base_url="http://127.0.0.1:1234/v1")
 
 
 def ask_local_model(prompt, mode="jarvis", model_name="mistral-7b-instruct-v0.2"):
+    global gui_app
     print("→ Sending prompt to local model:", prompt)
+    gui_app.update_chat(f"User: {prompt}" )
 
     # Choose system prompt based on mode
     if mode == "jarvis":
@@ -37,6 +39,8 @@ def ask_local_model(prompt, mode="jarvis", model_name="mistral-7b-instruct-v0.2"
         )
         content = resp.choices[0].message.content
         print("← Received reply:", content)
+        gui_app.update_chat(f"{current_mode}: {content}")
+        #save_chat(f"{current_mode}: {content}")
         return content
     except Exception as e:
         print("Error calling local model:", e)
@@ -115,33 +119,10 @@ def listen(timeout = 10, phrase_time_limit = 15):
 
 
 
-# Remove the blocking CLI loop and rely on the GUI buttons to start/stop the assistant.
-# The run_assistant() function will handle the assistant logic in a separate thread when activated from the GUI.
-
-# Dummy assistant logic for demo
-is_running = False
-#chat_h = [] # Chat History
-
-
-
-
-def start_assistant():
-    global is_running
-    is_running = True
-    update_chat("Assistant activated.")
-    run_assistant()
-
-
-def stop_assistant():
-    global is_running
-    is_running = False
-    update_chat("Assistant stopped.")
-
-
 # Assistant Logic
 def run_assistant():
     def loop():
-        global current_mode
+        global current_mode, gui_app
         while is_running:
             # Import the logic for checking the time for the AI camera
             
@@ -160,13 +141,15 @@ def run_assistant():
             
 
             # After we check if it's not the time for bed we starting a conversation
-            update_chat("[Assistant]: I'm listening...")
+            gui_app.update_chat("[Assistant]: I'm listening...")
             print("I'm listening...")
             user_input = listen()
             if user_input:
                 # Import the memory logic
                 from memory import mmory
-                update_chat(f"You said: {user_input}")
+                #update_chat = mmory.update_chat()
+                #update_chat(f"You said: {user_input}")
+                #save_chat(f"User: {user_input}")
                 facts = mmory.load_facts()
                 memory = mmory.load_memory()
 
@@ -184,23 +167,29 @@ def run_assistant():
                     current_mode = "female"
                     speak("Switched to female mode.")
                     
-                elif "go to sleep" in user_input:
+                elif "go to sleep" in user_input: # TODO: optional add if user said stop it will stop aswell
+                    gui_app.update_chat("user: go to sleep")
                     speak("Okay. Good night.", current_mode)
+                    print("Okay. Good night")
                     stop_assistant()
                 
                 elif user_input.startswith("no,") or "it's actually" in user_input or "correction:" in user_input:
                     
                     corrected = user_input.replace("no,", "").replace("it's actually", "").replace("correction:", "").strip()
+                    gui_app.update_chat("what topic is this correction for?")
                     speak("What topic is this correction for?", current_mode)
                     topic = listen()
                     if topic:
                         facts[topic] = corrected
                         mmory.save_facts(facts)
+                        gui_app.update_chat(f"Okay, I've update the fact: {topic}.")
                         speak(f"Okay, I've updated the fact: {topic}.", current_mode)
                 
                 else:
                     enhanced_prompt = mmory.inject_fact_memory(user_input, facts)
                     reply = ask_local_model(enhanced_prompt, current_mode)
+                    
+                    #gui_app.update_chat(reply)
                     speak(reply, current_mode)
 
 
@@ -213,37 +202,96 @@ def run_assistant():
 import tkinter as tk
 from tkinter import scrolledtext
 from tkinter import *
-
-def update_chat(text):
-    chat_h = [] # Chat History
-    chat_h.append(text) 
-    chat_dp.config(state = "normal")
-    chat_dp.insert(tk.END, text + '\n')
-    chat_dp.yview(tk.END)
-    chat_dp.config(state = "disabled")
+import json
+import os
 
 
 # Assistant GUI
-window = tk.Tk()
-chat_dp = scrolledtext.ScrolledText(window, wrap = tk.WORD, state = 'disabled')
-chat_dp.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+class GUI:
+    def __init__(self):
+        self.window = tk.Tk()
+        self.window.title("AI Assistant")
+        self.window.geometry("800x600")
+        self.window.configure(background="#2B2D31")
 
-window.title("AI Assistant")
-window.geometry("800x600")
-btn_frame = tk.Frame(window)
-btn_frame.pack( anchor= "w",pady=10)
+        # Create chat display ONCE
+        self.chat_dp = scrolledtext.ScrolledText(self.window, wrap = tk.WORD, state = 'disabled')
+        self.chat_dp.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
+        self.chat_dp.configure(font=21, fg="white", background="#2B2D31")
+
+        btn_frame = tk.Frame(self.window)
+        btn_frame.pack( anchor= "s", pady=10)
+
+        #self.update_chat("GUI loaded successfully") was to check if any text shows in the GUI.
+        
+        #     < ------ Buttons ------ >
+        # Press start Button to activate assistant 
+        start_btn = tk.Button(btn_frame, text = "Activate Assistant", command = start_assistant, bg="green", fg="white", width=20, height=2)
+        start_btn.pack(side = tk.TOP, padx=10)
+        
+        # Press stop Button to deactive assistant
+        stop_btn = tk.Button(btn_frame, text = "Stop Assistant", command = stop_assistant, bg="red", fg="white", width=20, height=2)
+        stop_btn.pack(side = tk.TOP, padx=10)
 
 
-# Start Button 
-start_btn = tk.Button(btn_frame, text = "Activate Assistant", command = start_assistant, bg="green", fg="white", width=20, height=2)
-start_btn.pack(side = tk.TOP, padx=10, pady=5)
+        # Load chat history from this code in the file on startup (optional) - For now I'm okay with this
+        if os.path.exists("chat_history.json"):
+            with open("chat_history.json", "r") as file:
+                try:
+                    history = json.load(file)
+                    for line in history:
+                        self.update_chat(line["message"], save = False) # Only show the messages, don't save again
+                except:
+                    pass
+
+        
 
 
-# Stop Button
-stop_btn = tk.Button(btn_frame, text = "Stop Assistant", command = stop_assistant, bg="red", fg="white", width=20, height=2)
-stop_btn.pack(side = tk.TOP, padx=10, pady=5)
+    def update_chat(self, text, save = True):
+        def do_update():
+            self.chat_dp.config(state = "normal")
+    
+            # Handle dict vs string
+            if isinstance(text, dict) and "text" in text:
+                display_text = text["text"]
+    
+            else:
+                display_text = str(text)
+    
+            self.chat_dp.insert(tk.END, display_text + '\n')
+            self.chat_dp.yview(tk.END)
+            self.chat_dp.config(state = "disabled")
+
+            # We need to load the chat history
+            if save:
+                from memory import mmory
+                #mmory.load_chat()
+
+                # Save to json file
+                mmory.save_chat(display_text)
+            #with open("chat_history.json", "w") as file:    
+                #json.dump(chat_h, file, indent = 2)
+        self.window.after(0, do_update)
 
 
-#tk.Button(window, text="Quit", command=window.quit).pack(side="right")
-window.mainloop()
+is_running = False
+def start_assistant():
+    global is_running, gui_app
+    is_running = True
+    if gui_app is not None:
+        gui_app.update_chat("Assistant activated.")
+    run_assistant()
 
+
+def stop_assistant():
+    global is_running, gui_app
+    is_running = False
+    if gui_app is not None:
+        gui_app.update_chat("Assistant stopped.")
+
+# Assistant GUI
+if __name__ == "__main__":
+    gui_app = GUI()
+
+
+mainloop()
