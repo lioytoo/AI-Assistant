@@ -12,7 +12,7 @@ def check_bedtime_warning(current_mode, memory):
 
 
     from memory import mmory
-
+    # Need to understand what it does or even if I need it
     if "checks" not in memory:
         memory["checks"] = {}
 
@@ -21,18 +21,18 @@ def check_bedtime_warning(current_mode, memory):
         memory["checks"][today] = {}
 
     
-    # 🔔 At 23:50
-    if hour == 23 and minute == 50 and not memory["checks"][today].get("23:50"):
+    # 🔔 At 23:30 - Tell the user to stop using screens
+    if (hour == 23 and minute == 30) or True: # and not memory["checks"][today].get("23:30"): testing 
         # Check motion
         in_bed = detect_motion_in_bed(debug = True)
 
         if not in_bed:
-            prompt = "Tell the user they have 10 minutes left before bedtime."
+            prompt = "Tell the user they have 30 minutes left before bedtime so they need to stop using screens."
             reply = ask_local_model(prompt, current_mode)
             speak(reply, current_mode)
 
         # Save this check so it doesn't repeat
-        memory["checks"][today]["23:50"] = True
+        memory["checks"][today]["23:30"] = True
         mmory.save_memory(memory)
 
     # ⏰ Check again at midnight
