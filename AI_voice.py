@@ -122,22 +122,15 @@ def listen(timeout = 10, phrase_time_limit = 15):
 # Assistant Logic
 def run_assistant():
     def loop():
+        from memory import mmory
         global current_mode, gui_app
         while is_running:
             # Import the logic for checking the time for the AI camera
             
 
 
-            now = datetime.now()
-            today = now.strftime("%Y-%m-%d") # Not used right now, but will be used later to schedule
-            hour = now.hour
-            minute = now.minute
-
-            if (hour == 23 and minute == 50) or (hour == 0 and minute == 0):
-                from assistant import check_bedtime_warning
-                from memory import mmory
-                memory = mmory.load_memory()
-                check_bedtime_warning(current_mode, memory)
+            
+ 
             
 
             # After we check if it's not the time for bed we starting a conversation
@@ -146,7 +139,6 @@ def run_assistant():
             user_input = listen()
             if user_input:
                 # Import the memory logic
-                from memory import mmory
                 #update_chat = mmory.update_chat()
                 #update_chat(f"You said: {user_input}")
                 #save_chat(f"User: {user_input}")
@@ -294,4 +286,17 @@ if __name__ == "__main__":
     gui_app = GUI()
 
 
+now = datetime.now()
+today = now.strftime("%Y-%m-%d") # Not used right now, but will be used later to schedule
+hour = now.hour
+minute = now.minute
+
+if (hour == 23 and minute == 50) or True: #(hour == 18 and minute == 7):
+    from assistant import check_bedtime_warning
+    from memory import mmory
+
+    memory = mmory.load_memory()
+    check_bedtime_warning(current_mode, memory)
+
 mainloop()
+
