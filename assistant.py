@@ -1,38 +1,38 @@
 
-def check_bedtime_warning(current_mode, memory):
+def bedtime_warning(current_mode, memory):
     import datetime
     from datetime import datetime
     from motion_detection import detect_motion_in_bed
-    from AI_voice import speak, listen, ask_local_model
     now = datetime.now()
     today = now.strftime("%Y-%m-%d")
     hour = now.hour
     minute = now.minute
-    #print(f"Current time: {hour}:{minute}")
-
-
-    from memory import mmory
-    # Need to understand what it does or even if I need it
+    
+    # Used for setting the memory for it to know it has already given us the warning.
     if "checks" not in memory:
         memory["checks"] = {}
 
-
     if today not in memory["checks"]:
         memory["checks"][today] = {}
-
+    
     
     # 🔔 At 23:30 - Tell the user to stop using screens
-    if (hour == 23 and minute == 30) or True: # and not memory["checks"][today].get("23:30"): testing 
+    if (hour == 23 and minute == 30) and not memory["checks"][today].get("23:30"): 
         # Check motion
         in_bed = detect_motion_in_bed(debug = True)
 
         if not in_bed:
             prompt = "Tell the user they have 30 minutes left before bedtime so they need to stop using screens."
+            from AI_voice import ask_local_model, speak
             reply = ask_local_model(prompt, current_mode)
+            print("DEBUG: About to speak:", reply)
             speak(reply, current_mode)
+        else:
+            print("DEBUG: Motion detected in bed, not giving warning.")
 
         # Save this check so it doesn't repeat
         memory["checks"][today]["23:30"] = True
+        from memory import mmory
         mmory.save_memory(memory)
 
     # ⏰ Check again at midnight
@@ -46,6 +46,7 @@ def check_bedtime_warning(current_mode, memory):
 
 
             # Listen for excuses
+            from AI_voice import listen
             speak("Do you want 10 more minutes?", current_mode)
             resp = listen()
 
