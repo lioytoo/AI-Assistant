@@ -21,13 +21,17 @@ def detect_motion_in_bed(debug = True):
             break
         backsub.apply(frame) # Just update background model - no detection here
 
-    # Start actual motion detection
-    while True:
+    # Start actual motion detection for 5 seconds so it won't run forever
+    start_time = time.time()
+    while time.time() - time.time() < 5:
         ret, image = cap.read()
         if not ret:
             print("Failed to grab frame")
             break
-            #continue  
+         
+        if time.time() - start_time > 5:
+            break
+        
 
         fgmask = backsub.apply(image)
 
