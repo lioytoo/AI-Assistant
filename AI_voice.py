@@ -4,7 +4,7 @@ import speech_recognition as sr
 from openai import OpenAI
 from datetime import datetime
 import threading
-
+from assistant import bedtime_warning
 gui_app = None
 # For changing speak modes
 global current_mode
@@ -18,13 +18,14 @@ client = OpenAI(api_key="lmstudio", base_url="http://127.0.0.1:1234/v1")
 def ask_local_model(prompt, mode="jarvis", model_name="mistral-7b-instruct-v0.2"):
     global gui_app
     print("→ Sending prompt to local model:", prompt)
-    gui_app.update_chat(f"User: {prompt}" )
+    if gui_app is not None:
+        gui_app.update_chat(f"User: {prompt}" )
 
     # Choose system prompt based on mode
     if mode == "jarvis":
         styled_prompt = (
             "JARVIS is a helpful and respectful AI assistant.\n"
-            f"Human: {prompt}\n"
+            f"You have been asked: {prompt}\n"
             "JARVIS:"
         )
     else:
@@ -39,10 +40,10 @@ def ask_local_model(prompt, mode="jarvis", model_name="mistral-7b-instruct-v0.2"
         )
         content = resp.choices[0].message.content
         print("← Received reply:", content)
-        gui_app.update_chat(f"{current_mode}: {content}")
-        #save_chat(f"{current_mode}: {content}")
+        if gui_app is not None:
+            gui_app.update_chat(f"{current_mode}: {content}")
         return content
-    except Exception as e:
+    except Exception as e:                      # If the reply is empty, the problem is before TTS
         print("Error calling local model:", e)
         return ""
 
@@ -119,32 +120,20 @@ def listen(timeout = 10, phrase_time_limit = 15):
 
 
 
+
 # Assistant Logic
 def run_assistant():
     def loop():
         from memory import mmory
         global current_mode, gui_app
         while is_running:
-            # Import the logic for checking the time for the AI camera
-            
-
-
-            
- 
-            
-
             # After we check if it's not the time for bed we starting a conversation
             gui_app.update_chat("[Assistant]: I'm listening...")
             print("I'm listening...")
             user_input = listen()
             if user_input:
-                # Import the memory logic
-                #update_chat = mmory.update_chat()
-                #update_chat(f"You said: {user_input}")
-                #save_chat(f"User: {user_input}")
                 facts = mmory.load_facts()
                 memory = mmory.load_memory()
-
 
                 # Handle commands
                 if "switch to friendly" in user_input:
@@ -181,7 +170,7 @@ def run_assistant():
                     enhanced_prompt = mmory.inject_fact_memory(user_input, facts)
                     reply = ask_local_model(enhanced_prompt, current_mode)
                     
-                    #gui_app.update_chat(reply)
+
                     speak(reply, current_mode)
 
 
@@ -196,7 +185,6 @@ from tkinter import scrolledtext
 from tkinter import *
 import json
 import os
-
 
 # Assistant GUI
 class GUI:
@@ -235,8 +223,7 @@ class GUI:
                         self.update_chat(line["message"], save = False) # Only show the messages, don't save again
                 except:
                     pass
-
-        
+        self.window.after(1000, self.check_bedtime)
 
 
     def update_chat(self, text, save = True):
@@ -257,13 +244,24 @@ class GUI:
             # We need to load the chat history
             if save:
                 from memory import mmory
-                #mmory.load_chat()
 
                 # Save to json file
                 mmory.save_chat(display_text)
-            #with open("chat_history.json", "w") as file:    
-                #json.dump(chat_h, file, indent = 2)
         self.window.after(0, do_update)
+
+
+    # Import the logic for checking the time for the AI camera
+    def check_bedtime(self):
+        now = datetime.now()
+        hour = now.hour
+        minute = now.minute
+
+        if (hour == 23 and minute == 30) or True: #(hour == 0 and minute == 0):
+            from memory import mmory
+            memory = mmory.load_memory()
+            bedtime_warning(current_mode, memory)
+            
+        self.window.after(60000, self.check_bedtime) # after 6 sec it will trigger the check motion in bed
 
 
 is_running = False
@@ -284,19 +282,5 @@ def stop_assistant():
 # Assistant GUI
 if __name__ == "__main__":
     gui_app = GUI()
-
-
-now = datetime.now()
-today = now.strftime("%Y-%m-%d") # Not used right now, but will be used later to schedule
-hour = now.hour
-minute = now.minute
-
-if (hour == 23 and minute == 50) or True: #(hour == 18 and minute == 7):
-    from assistant import check_bedtime_warning
-    from memory import mmory
-
-    memory = mmory.load_memory()
-    check_bedtime_warning(current_mode, memory)
-
-mainloop()
+    gui_app.window.mainloop()
 
