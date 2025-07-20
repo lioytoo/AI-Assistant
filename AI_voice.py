@@ -256,7 +256,7 @@ class GUI:
         hour = now.hour
         minute = now.minute
 
-        if (hour == 23 and minute == 30) or True: #(hour == 0 and minute == 0):
+        if hour == 23 and minute == 30: #(hour == 0 and minute == 0):
             from memory import mmory
             memory = mmory.load_memory()
             bedtime_warning(current_mode, memory)
