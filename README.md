@@ -32,3 +32,5 @@ then it also retrieves all of the available microphones using ```sr.Microphones.
 witch returns a list where each index corresponds to a device index.
 
 To display only the working microphones, it builds  a list of tuples (index, name) for each working microphone.
+
+A Tkinter ```tk.IntVar()``` is created to store the selected microphone index, and it's initialized to the first working microphone by default.
