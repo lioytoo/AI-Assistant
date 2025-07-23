@@ -65,7 +65,7 @@ def speak(text, mode = "jarvis"): # for default
     if mode == "jarvis": # Jarvis voice
         voice_index = get_voice_by_name("george")
         # Format address politly, add a small prefix
-        engine.setProperty('rate', 250)  # adjust as you like
+        engine.setProperty('rate', 200)  # adjust as you like
         engine.setProperty('volume', 1.0)
         message = f"sir, {text}"
 
@@ -101,7 +101,10 @@ def speak(text, mode = "jarvis"): # for default
 # Speach Recognition ("listen") Setup
 def listen(timeout = 10, phrase_time_limit = 15):
     r = sr.Recognizer()
-    with sr.Microphone() as source:
+    mic_index = gui_app.selected_mic_index.get()
+    mic_name = sr.Microphone.list_microphone_names()[mic_index]
+    
+    with sr.Microphone(device_index = mic_index) as source:
         print("[Assistant]: I'm listening...")
         audio = r.listen(source, phrase_time_limit = phrase_time_limit, timeout = timeout)
     try:
@@ -116,7 +119,6 @@ def listen(timeout = 10, phrase_time_limit = 15):
     except Exception as e:
         print(f"Unexpected error in listen(): {e}")
         return "" 
-
 
 
 
@@ -199,20 +201,6 @@ class GUI:
         self.chat_dp.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
         self.chat_dp.configure(font=21, fg="white", background="#2B2D31")
 
-        btn_frame = tk.Frame(self.window)
-        btn_frame.pack( anchor= "s", pady=10)
-
-        #self.update_chat("GUI loaded successfully") was to check if any text shows in the GUI.
-        
-        #     < ------ Buttons ------ >
-        # Press start Button to activate assistant 
-        start_btn = tk.Button(btn_frame, text = "Activate Assistant", command = start_assistant, bg="green", fg="white", width=20, height=2)
-        start_btn.pack(side = tk.TOP, padx=10)
-        
-        # Press stop Button to deactive assistant
-        stop_btn = tk.Button(btn_frame, text = "Stop Assistant", command = stop_assistant, bg="red", fg="white", width=20, height=2)
-        stop_btn.pack(side = tk.TOP, padx=10)
-
 
         # Load chat history from this code in the file on startup (optional) - For now I'm okay with this
         if os.path.exists("chat_history.json"):
@@ -224,6 +212,60 @@ class GUI:
                 except:
                     pass
         self.window.after(1000, self.check_bedtime)
+
+
+        #     < ------ Buttons ------ >
+        btn_frame = tk.Frame(self.window)
+        btn_frame.pack(side=tk.BOTTOM, anchor="se", fill=tk.X, pady=10)
+        btn_frame.configure(background="#2B2D31")
+        
+        # Press start Button to activate assistant 
+        start_btn = tk.Button(btn_frame, text = "Activate Assistant", command = start_assistant, bg="green", fg="white", width=20, height=2)
+        start_btn.pack(side = tk.TOP, padx=10)
+        
+        # Press stop Button to deactive assistant
+        stop_btn = tk.Button(btn_frame, text = "Stop Assistant", command = stop_assistant, bg="red", fg="white", width=20, height=2)
+        stop_btn.pack(side = tk.TOP, padx=10)
+
+
+        # Choose what microphone to use
+        working_indexes = sr.Microphone.list_working_microphones()
+        all_names = sr.Microphone.list_microphone_names()
+
+
+        # Build a list of (index, name) tuples for working mics
+        self.working_mics = [(i, all_names[i]) for i in working_indexes if i < len(all_names)]
+
+        # Stores the selected microphone index
+        self.selected_mic_index = tk.IntVar()
+        self.selected_mic_index.set(self.working_mics[0][0])  # Default to first mic ---- TODO: make it save the mic option after closing the app
+
+        # To display the menu
+        mic_dropdown = tk.OptionMenu(btn_frame, self.selected_mic_index, *[mic[0] for mic in self.working_mics])
+        mic_dropdown.config(bg="#2B2D31", fg="white", activebackground="#3A3D42", activeforeground="white", highlightthickness=1, bd=0)
+        mic_dropdown.pack(anchor="se", side=tk.RIGHT, padx=10, pady=5)
+
+
+        # Show the name of the selected mic in a label
+        self.mic_label = tk.Label(btn_frame, text = self.working_mics[0][1], bg="#2B2D31", fg="white")
+        self.mic_label.pack(side=tk.RIGHT, padx=10)
+
+        self.selected_mic_index.trace_add("write", self.update_mic_label)
+
+
+
+    def update_mic_label(self, *args):
+        selected_index = self.selected_mic_index.get()
+        
+        # Look for the mic name matching the selected index
+        mic_name = "unknown" 
+        for index, name in self.working_mics:
+            if index == selected_index:
+                mic_name = name
+
+        self.mic_label.config(text=mic_name)
+
+  
 
 
     def update_chat(self, text, save = True):
@@ -256,12 +298,12 @@ class GUI:
         hour = now.hour
         minute = now.minute
 
-        if hour == 23 and minute == 30: #(hour == 0 and minute == 0):
+        if (hour == 23 and minute == 30): #(hour == 0 and minute == 0):
             from memory import mmory
             memory = mmory.load_memory()
             bedtime_warning(current_mode, memory)
             
-        self.window.after(60000, self.check_bedtime) # after 6 sec it will trigger the check motion in bed
+        self.window.after(20000, self.check_bedtime) # after 6 sec it will trigger the check motion in bed
 
 
 is_running = False
@@ -283,4 +325,3 @@ def stop_assistant():
 if __name__ == "__main__":
     gui_app = GUI()
     gui_app.window.mainloop()
-
