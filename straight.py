@@ -1,24 +1,25 @@
-from datetime import datetime
-import pyttsx3
+import os
+os.environ["XDG_CACHE_HOME"] = os.path.expanduser("~/.cache")
+
 from TTS.api import TTS
-print(TTS.list_models())
+from TTS.utils.manage import ModelManager
 
 
-        
-engine = pyttsx3.init()    
-voices = engine.getProperty("voices")
+# For each m in models,
+# it checks if "en/" and "/tts_models" are both present in the string m.
+# If both conditions are true, m is included in the new list.
+manager = ModelManager()
+models = manager.list_models()
 
-def alarm():
-    now = datetime.now()
+available_English_models = [m for m in models if "en/" in m and "/tts_models" in m]
+#available_English_models = manager.list_models()
 
-    # Format address politly, add a small prefix
-    engine.setProperty('voice', voices[29].id)
-    a=engine.getProperty('voice')
-    print(a)
-    engine.setProperty('rate', 200)  # adjust as you like
-    engine.setProperty('volume', 1.0)
-    if now.hour == 20 and now.minute == 46:
-        message = "Alarm! Time's up!"
-        engine.say(message)
-        engine.runAndWait()
-alarm()
+# List available models
+#print("\nAvailable models:")
+
+for model in available_English_models:
+    print(" -", model)
+
+tts = TTS(model_name="tts_models/en/vctk/vits")
+
+tts.tts_to_file(text="Hello Light! Your setup is working.", file_path="output.wav")
