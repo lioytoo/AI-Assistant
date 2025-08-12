@@ -59,11 +59,16 @@ def get_voice_by_name(name_fragment):
 engine = pyttsx3.init()    
 voices = engine.getProperty("voices")
 
+for i, voice in enumerate(voices):
+    print(f"{i}: {voice.name} ({voice.id}) - {voice.languages}")
+
 # For changing voices
 def speak(text, mode = "jarvis"): # for default
 
     if mode == "jarvis": # Jarvis voice
-        voice_index = get_voice_by_name("george")
+        voice_index = get_voice_by_name("english")
+        if voice_index:
+            engine.setProperty('voice', voice_index)
         # Format address politly, add a small prefix
         engine.setProperty('rate', 200)  # adjust as you like
         engine.setProperty('volume', 1.0)
@@ -193,7 +198,7 @@ class GUI:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("AI Assistant")
-        self.window.geometry("800x600")
+        self.window.geometry("900x900")
         self.window.configure(background="#2B2D31")
 
         # Create chat display ONCE
